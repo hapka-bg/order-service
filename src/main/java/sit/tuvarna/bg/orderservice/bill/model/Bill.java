@@ -21,7 +21,7 @@ public class Bill {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne
+    @OneToOne
     @JoinColumn(name = "session_id")
     private TableSession session;
 
@@ -40,4 +40,7 @@ public class Bill {
     @Column(name = "issued_at")
     @CreationTimestamp
     private LocalDateTime issuedAt;
+
+    @Column(name = "user_id")
+    private UUID userId;
 }

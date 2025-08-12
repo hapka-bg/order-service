@@ -10,26 +10,26 @@ import java.util.UUID;
 @Data
 @NoArgsConstructor
 @Entity
-@Table(name = "restaurant_table")
+@Table(name = "restaurant_tables")
 public class RestaurantTable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "table_number")
+    @Column(name = "table_number",unique = true)
     private Long tableNumber;
 
-    @Column(name = "is_smoking")
-    private Boolean isSmoking;
+    @Column(name = "smoking")
+    private Boolean smoking;
 
-    @Column(name = "is_outdoor")
-    private Boolean isOutdoor;
+    @Column(name = "outdoor")
+    private Boolean outdoor;
 
-    @Column(name = "is_occupied")
-    private Boolean isOccupied;
+    @Column(name = "occupied")
+    private Boolean occupied;
 
-    private Long capacity;
+    private Integer capacity;
 
     @OneToOne
     @JoinColumn(name = "session_id")

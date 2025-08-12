@@ -3,7 +3,7 @@ package sit.tuvarna.bg.orderservice.productCustomization.module;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import sit.tuvarna.bg.orderservice.ingriedient.module.Ingredient;
+import sit.tuvarna.bg.orderservice.ingriedient.model.Ingredient;
 import sit.tuvarna.bg.orderservice.product.module.Product;
 
 import java.math.BigDecimal;
@@ -13,8 +13,7 @@ import java.util.UUID;
 @Entity
 @Data
 @NoArgsConstructor
-@Table(name = "product_customization")
-//@IdClass()
+@Table(name = "product_customizations")
 public class ProductCustomization {
 
     @Id
@@ -29,11 +28,11 @@ public class ProductCustomization {
     @JoinColumn(name = "ingredient_id")
     private Ingredient ingredient;
 
-    @Column(name = "can_add")
-    private Boolean canAdd;
+    @Column(name = "addable")
+    private Boolean addable;
 
-    @Column(name = "can_remove")
-    private Boolean canRemove;
+    @Column(name = "removable")
+    private Boolean removable;
 
     @Column(name = "extra_cost")
     private BigDecimal extraCost;

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import sit.tuvarna.bg.orderservice.restaurantTable.model.RestaurantTable;
+import sit.tuvarna.bg.orderservice.reveiw.model.Review;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -11,7 +12,7 @@ import java.util.UUID;
 @Data
 @NoArgsConstructor
 @Entity
-@Table(name = "table_session")
+@Table(name = "table_sessions")
 public class TableSession {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -29,4 +30,8 @@ public class TableSession {
 
     @Enumerated(EnumType.STRING)
     private TableStatus status;
+
+    @OneToOne(mappedBy = "session", cascade = CascadeType.ALL)
+    private Review review;
+
 }

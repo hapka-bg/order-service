@@ -1,4 +1,4 @@
-package sit.tuvarna.bg.orderservice.ingriedient.module;
+package sit.tuvarna.bg.orderservice.ingriedient.model;
 
 
 import jakarta.persistence.*;
@@ -21,13 +21,19 @@ public class Ingredient {
 
     private String name;
 
-    @Column(name = "is_vegan")
-    private Boolean isVegan;
+    @Column(name = "vegan")
+    private Boolean vegan;
 
-    @Column(name = "is_alergen")
-    private Boolean isAllergen;
+    @Column(name = "allergen")
+    private Boolean allergen;
 
     private Integer weightGrams;
+
+    @Column(name = "stock_count")
+    private Integer stockCount;
+
+    @Enumerated(EnumType.STRING)
+    private IngredientCategory category;
 
     @ManyToMany(mappedBy = "ingredients")
     private Set<Product> products;

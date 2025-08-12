@@ -1,5 +1,5 @@
 package sit.tuvarna.bg.orderservice.onlineOrder.model;
 
-public enum Status {
+public enum OnlineOrderStatus {
     PLACED,PREPARING,SHIPPER,DELIVERED,CANCELED
 }

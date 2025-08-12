@@ -3,7 +3,7 @@ package sit.tuvarna.bg.orderservice.product.module;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import sit.tuvarna.bg.orderservice.ingriedient.module.Ingredient;
+import sit.tuvarna.bg.orderservice.ingriedient.model.Ingredient;
 import sit.tuvarna.bg.orderservice.productCustomization.module.ProductCustomization;
 
 import java.math.BigDecimal;
@@ -27,19 +27,21 @@ public class Product {
 
     private Integer grams;
 
-    @Column(name = "is_seasonal")
-    private Boolean isSeasonal;
+    @Column(name = "seasonal")
+    private Boolean seasonal;
 
     private String description;
 
-    @Column(name = "is_available")
-    private Boolean isAvailable;
+    @Column(name = "available")
+    private Boolean available;
 
     @Enumerated(EnumType.STRING)
     private Category category;
 
     @Column(name = "display_order")
     private Integer displayOrder;
+
+    private String recipe;
 
     @ManyToMany
     @JoinTable(name = "product_combinations",
@@ -48,7 +50,7 @@ public class Product {
     )
     private Set<Product> combinations=new HashSet<>();
 
-    @OneToMany
+    @OneToMany(mappedBy = "product")
     private List<ProductCustomization> customizations=new ArrayList<>();
 
     @ManyToMany
