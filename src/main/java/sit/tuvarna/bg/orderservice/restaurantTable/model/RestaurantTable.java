@@ -31,11 +31,9 @@ public class RestaurantTable {
 
     private Integer capacity;
 
-    @OneToOne
+    @OneToOne(cascade =  CascadeType.ALL)
     @JoinColumn(name = "session_id")
     private TableSession session;
 
     private String notes;
-
-
 }

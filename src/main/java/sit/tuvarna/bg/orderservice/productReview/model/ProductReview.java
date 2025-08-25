@@ -17,7 +17,6 @@ public class ProductReview {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-
     @ManyToOne
     @JoinColumn(name = "review_id")
     private Review review;

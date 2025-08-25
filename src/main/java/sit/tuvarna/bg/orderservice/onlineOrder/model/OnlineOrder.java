@@ -27,6 +27,7 @@ public class OnlineOrder {
     private UUID userId;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "online_order_status", length = 50)
     private OnlineOrderStatus onlineOrderStatus;
 
     private BigDecimal total;
