@@ -2,10 +2,10 @@ package sit.tuvarna.bg.orderservice.web;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import sit.tuvarna.bg.orderservice.product.service.ProductService;
+import sit.tuvarna.bg.orderservice.web.dto.addProduct.ProductDto;
+import sit.tuvarna.bg.orderservice.web.dto.addProduct.ProductResult;
 import sit.tuvarna.bg.orderservice.web.dto.products.CustomProduct;
 
 import java.util.List;
@@ -23,8 +23,13 @@ public class ProductsController {
 
     @GetMapping("/all")
     public ResponseEntity<List<CustomProduct>> all(){
-        System.out.println("Get all products");
         List<CustomProduct> allProducts = productService.getAllProducts();
         return ResponseEntity.ok(allProducts);
+    }
+
+    @PostMapping("/add")
+    public ResponseEntity<ProductResult> addProduct(@RequestBody ProductDto productDto) {
+        ProductResult productResult = productService.addNewProduct(productDto);
+        return ResponseEntity.ok(productResult);
     }
 }

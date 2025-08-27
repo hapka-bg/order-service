@@ -25,7 +25,7 @@ public class OrderService {
     }
 
     public List<OrderSummary> getAllOrders() {
-        List<OrderSummary> orderSummaries = orderRepository.findOrderSummaries(LocalDateTime.now().minusDays(7));
+        List<OrderSummary> orderSummaries = orderRepository.findOrderSummaries(LocalDateTime.now().minusMonths(1));
         List<UUID> ids = orderSummaries.stream()
                 .map(OrderSummary::getUserId)
                 .toList();

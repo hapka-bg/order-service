@@ -59,7 +59,7 @@ public class ReviewService {
     }
 
     public List<ReviewDisplay> getTimeBasedReviews(String period){
-        List<Review> result=new ArrayList<>();
+        List<Review> result;
         switch (period.toLowerCase()) {
             case "7days":
             case "week":
