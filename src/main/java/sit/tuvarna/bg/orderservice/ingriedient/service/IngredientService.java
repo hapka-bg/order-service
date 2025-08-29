@@ -42,4 +42,8 @@ public class IngredientService {
     public List<Ingredient> findAllById(List<UUID> uuids){
         return inventoryRepository.findAllById(uuids);
     }
+
+    public Ingredient getById(UUID id) {
+        return inventoryRepository.findById(id).orElseThrow(() -> new RuntimeException("Ingredient not found"));
+    }
 }

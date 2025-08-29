@@ -16,6 +16,7 @@ import sit.tuvarna.bg.orderservice.web.dto.addProduct.ProductDto;
 import sit.tuvarna.bg.orderservice.web.dto.addProduct.ProductResult;
 import sit.tuvarna.bg.orderservice.web.dto.products.CustomProduct;
 import sit.tuvarna.bg.orderservice.web.dto.salesAndAnalytics.ProductExtremesProjection;
+import sit.tuvarna.bg.orderservice.web.dto.users.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -132,6 +133,60 @@ public class ProductService {
         pr.setStatus("success");
         pr.setMessage("Product added successfully");
         return pr;
+    }
+
+    public List<ProductsDto> getAllForUser( ){
+        List<ProductsDto> result=new ArrayList<>();
+        for (Product product : productRepository.findAll()) {
+            ProductsDto productDto = new ProductsDto();
+            productDto.setId(product.getId());
+            productDto.setName(product.getName());
+            productDto.setCategory(product.getCategory().name());
+            productDto.setWeight(product.getGrams());
+            productDto.setPrice(product.getPrice());
+            productDto.setImage(product.getImageURL());
+            result.add(productDto);
+        }
+        return result;
+    }
+
+    public ProductToDisplay getProductById(UUID id) {
+        Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
+        ProductToDisplay dto = new ProductToDisplay();
+        dto.setId(product.getId());
+        dto.setName(product.getName());
+        dto.setPrice(product.getPrice());
+        dto.setWeight(product.getGrams());
+        dto.setImage(product.getImageURL());
+        dto.setDescription(product.getDescription());
+        dto.setCategory(product.getCategory().name());
+        dto.setCustomizations(product.getCustomizations().stream().map(c -> {
+            CustomizationDto cdto = new CustomizationDto();
+            cdto.setId(c.getId());
+            CustomizableIngredients ing = new CustomizableIngredients();
+            ing.setId(c.getIngredient().getId());
+            ing.setName(c.getIngredient().getName());
+            cdto.setIngredient(ing);
+            cdto.setAddable(Boolean.TRUE.equals(c.getAddable()));
+            cdto.setRemovable(Boolean.TRUE.equals(c.getRemovable()));
+            cdto.setExtraCost(c.getExtraCost());
+            cdto.setMaxQuantity(c.getMaxQuantity());
+            return cdto;
+        }).collect(Collectors.toList()));
+
+        dto.setRecommended(product.getCombinations().stream().map(r -> {
+            RecommendedProductDto recDto = new RecommendedProductDto();
+            recDto.setId(r.getId());
+            recDto.setName(r.getName());
+            recDto.setPrice(r.getPrice());
+            recDto.setImage(r.getImageURL());
+            return recDto;
+        }).collect(Collectors.toList()));
+        return dto;
+    }
+
+    public Product getById(UUID id) {
+        return productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
     }
 
 }

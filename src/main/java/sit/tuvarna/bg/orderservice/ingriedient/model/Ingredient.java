@@ -3,6 +3,7 @@ package sit.tuvarna.bg.orderservice.ingriedient.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import sit.tuvarna.bg.orderservice.product.module.Product;
 
@@ -13,10 +14,12 @@ import java.util.UUID;
 @NoArgsConstructor
 @Entity
 @Table(name = "ingredients")
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Ingredient {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @EqualsAndHashCode.Include
     private UUID id;
 
     private String name;

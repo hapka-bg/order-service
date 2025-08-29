@@ -3,12 +3,23 @@ package sit.tuvarna.bg.orderservice.onlineOrder.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import sit.tuvarna.bg.orderservice.auth.service.AuthService;
+import sit.tuvarna.bg.orderservice.ingriedient.model.Ingredient;
+import sit.tuvarna.bg.orderservice.ingriedient.service.IngredientService;
+import sit.tuvarna.bg.orderservice.onlineOrder.model.DeliveryMethod;
 import sit.tuvarna.bg.orderservice.onlineOrder.model.OnlineOrder;
 import sit.tuvarna.bg.orderservice.onlineOrder.model.OnlineOrderStatus;
+import sit.tuvarna.bg.orderservice.onlineOrder.model.PaymentMethod;
 import sit.tuvarna.bg.orderservice.onlineOrder.repository.OnlineOrderRepository;
+import sit.tuvarna.bg.orderservice.onlineOrderCustomization.model.OnlineOrderCustomization;
+import sit.tuvarna.bg.orderservice.onlineOrderCustomization.model.Type;
 import sit.tuvarna.bg.orderservice.onlineOrderItem.model.OnlineOrderItem;
+import sit.tuvarna.bg.orderservice.product.module.Product;
+import sit.tuvarna.bg.orderservice.product.service.ProductService;
+import sit.tuvarna.bg.orderservice.productCustomization.module.ProductCustomization;
 import sit.tuvarna.bg.orderservice.web.dto.onlineOrders.*;
+import sit.tuvarna.bg.orderservice.web.dto.orderRequest.*;
 import sit.tuvarna.bg.orderservice.web.dto.salesAndAnalytics.RevenuePoint;
 
 import java.math.BigDecimal;
@@ -22,11 +33,17 @@ public class OnlineOrderService {
 
     private final OnlineOrderRepository onlineOrderRepository;
     private final AuthService authService;
+    private final ProductService productService;
+    private final IngredientService ingredientService;
+
+
 
     @Autowired
-    public OnlineOrderService(OnlineOrderRepository onlineOrderRepository, AuthService authService) {
+    public OnlineOrderService(OnlineOrderRepository onlineOrderRepository, AuthService authService, ProductService productService, IngredientService ingredientService) {
         this.onlineOrderRepository = onlineOrderRepository;
         this.authService = authService;
+        this.productService = productService;
+        this.ingredientService = ingredientService;
     }
 
     @Async
@@ -130,5 +147,118 @@ public class OnlineOrderService {
                 .toList();
 
 
+    }
+
+    @Transactional
+    public OrderResponseDTO processOrder(OrderRequestDTO dto, String authHeader) {
+        UUID userId = authService.extractUserId(authHeader);
+        // 1. Create the order entity
+            OnlineOrder order = new OnlineOrder();
+            order.setUserId(userId);
+            order.setOnlineOrderStatus(OnlineOrderStatus.PLACED);
+            order.setDeliveryMethod(DeliveryMethod.DELIVERY);
+            order.setPaymentMethod(PaymentMethod.CASH);
+
+            BigDecimal subtotal = BigDecimal.ZERO;
+
+            // 2. Map products to order items
+            for (ProductDTO pDto : dto.getProducts()) {
+                Product product = productService.getById(pDto.getId());
+                OnlineOrderItem item = new OnlineOrderItem();
+                item.setOrder(order);
+                item.setProduct(product);
+                item.setQuantity(pDto.getQuantity());
+                item.setUnitPrice(BigDecimal.valueOf(pDto.getPrice()));
+
+                ProductCustomizationsDTO customizations = pDto.getCustomizations();
+                // Map customizations
+                if (!customizations.getAdded().isEmpty() ) {
+                    // Added
+                    for (ProductCustomizationDTO add : customizations.getAdded()) {
+                        Ingredient ingredient = ingredientService.getById(add.getId());
+                        OnlineOrderCustomization customization = new OnlineOrderCustomization();
+                        customization.setOrderItem(item);
+                        customization.setIngredient(ingredient);
+                        customization.setType(Type.ADD);
+                        customization.setQuantity(add.getQuantity());
+                        BigDecimal extraCost = findExtraCostForIngredient(ingredient, product.getCustomizations());
+                        customization.setExtraCost(extraCost);
+
+                        item.getCustomizations().add(customization);
+                    }
+                }
+                if (!customizations.getRemoved().isEmpty()) {
+                    // Removed
+                    for (ProductCustomizationDTO rem : customizations.getRemoved()) {
+                        Ingredient ingredient = ingredientService.getById(rem.getId());
+                        OnlineOrderCustomization customization = new OnlineOrderCustomization();
+                        customization.setOrderItem(item);
+                        customization.setIngredient(ingredient);
+                        customization.setType(Type.REMOVE);
+                        customization.setQuantity(1);
+                        customization.setExtraCost(BigDecimal.ZERO);
+
+                        item.getCustomizations().add(customization);
+                    }
+                }
+
+                order.getItems().add(item);
+
+                // Add to subtotal
+                subtotal = subtotal.add(item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
+            }
+
+            // 3. Apply delivery fee
+            BigDecimal backendTotal = subtotal.add(BigDecimal.valueOf(5.00)); // baseDeliveryFee
+
+            // 4. Apply extras
+            if (dto.getExtras() != null) {
+                if (dto.getExtras().isCutleryNapkins()) {
+                    backendTotal = backendTotal.add(BigDecimal.valueOf(1.00));
+                }
+                if (dto.getExtras().isSushiSticks() && dto.getExtras().getSushiSticksCount() != null) {
+                    try {
+                        int count = Integer.parseInt(dto.getExtras().getSushiSticksCount());
+                        backendTotal = backendTotal.add(BigDecimal.valueOf(count * 0.10));
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+
+            // 5. (Promo code logic would go here in the future)
+            // Example:
+            // if (dto.getPromoCode() != null && !dto.getPromoCode().isBlank()) {
+            //     BigDecimal discount = promoCodeService.calculateDiscount(dto.getPromoCode(), backendTotal);
+            //     backendTotal = backendTotal.subtract(discount);
+            //     order.setDiscount(discount);
+            // }
+
+            // 6. Compare backend total with frontend total
+            BigDecimal frontendTotal = BigDecimal.valueOf(dto.getTotal());
+            if (backendTotal.compareTo(frontendTotal) != 0) {
+                throw new IllegalArgumentException("Total mismatch: frontend=" + frontendTotal + ", backend=" + backendTotal);
+            }
+
+            // 7. Set totals in order
+            order.setTotal(subtotal);
+            order.setDiscount(BigDecimal.ZERO);
+            order.setTax(BigDecimal.ZERO);
+            order.setFinalTotal(backendTotal);
+
+            // 8. Save order
+            OnlineOrder saved = onlineOrderRepository.save(order);
+
+            // 9. Return response
+            return new OrderResponseDTO(saved.getId(), saved.getOnlineOrderStatus(), saved.getFinalTotal());
+
+    }
+
+    private BigDecimal findExtraCostForIngredient(Ingredient ingredient, List<ProductCustomization> customizations) {
+        for (ProductCustomization customization : customizations) {
+            Ingredient ingredient1 = customization.getIngredient();
+            if(ingredient1.equals(ingredient)) {
+                return customization.getExtraCost();
+            }
+        }
+        return BigDecimal.ZERO;
     }
 }

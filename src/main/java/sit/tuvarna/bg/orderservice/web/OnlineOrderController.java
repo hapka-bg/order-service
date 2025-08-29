@@ -5,6 +5,8 @@ import org.springframework.web.bind.annotation.*;
 import sit.tuvarna.bg.orderservice.onlineOrder.service.OnlineOrderService;
 import sit.tuvarna.bg.orderservice.onlineOrderReview.service.OnlineOrderReviewService;
 import sit.tuvarna.bg.orderservice.web.dto.onlineOrders.*;
+import sit.tuvarna.bg.orderservice.web.dto.orderRequest.OrderRequestDTO;
+import sit.tuvarna.bg.orderservice.web.dto.orderRequest.OrderResponseDTO;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -61,5 +63,11 @@ public class OnlineOrderController {
     public ResponseEntity<List<Long>> getOrdersPerDay() {
         List<Long> ordersPerDay = onlineOrderService.getOrdersPerDay();
         return ResponseEntity.ok(ordersPerDay);
+    }
+    @PostMapping("/place")
+    public ResponseEntity<OrderResponseDTO> postOrder(@RequestBody OrderRequestDTO orderRequest,
+                                                      @RequestHeader("Authorization") String authHeader){
+        OrderResponseDTO orderResponseDTO = onlineOrderService.processOrder(orderRequest,authHeader);
+        return ResponseEntity.ok(orderResponseDTO);
     }
 }
