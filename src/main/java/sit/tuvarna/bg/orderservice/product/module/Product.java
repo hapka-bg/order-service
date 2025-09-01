@@ -50,7 +50,7 @@ public class Product {
     )
     private Set<Product> combinations=new HashSet<>();
 
-    @OneToMany(mappedBy = "product")
+    @OneToMany(mappedBy = "product",cascade = CascadeType.ALL,orphanRemoval = true)
     private List<ProductCustomization> customizations=new ArrayList<>();
 
     @ManyToMany

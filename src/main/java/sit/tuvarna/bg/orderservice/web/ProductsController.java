@@ -44,7 +44,19 @@ public class ProductsController {
     @GetMapping("/{id}")
     public ResponseEntity<ProductToDisplay> getProduct(@PathVariable UUID id) {
         ProductToDisplay productById = productService.getProductById(id);
-
         return ResponseEntity.ok(productById);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProduct(@PathVariable UUID id) {
+        productService.deleteProduct(id);
+        return ResponseEntity.noContent().build();
+    }
+    @PutMapping("/{id}")
+    public ResponseEntity<Void> updateProduct(@PathVariable UUID id,
+                                                 @RequestBody ProductDto updatedProduct){
+        productService.updateProduct(id,updatedProduct);
+        return ResponseEntity.noContent().build();
+    }
+
 }

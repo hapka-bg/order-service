@@ -1,5 +1,6 @@
 package sit.tuvarna.bg.orderservice.onlineOrder.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import sit.tuvarna.bg.orderservice.onlineOrderItem.model.OnlineOrderItem;
 import sit.tuvarna.bg.orderservice.product.module.Product;
 import sit.tuvarna.bg.orderservice.product.service.ProductService;
 import sit.tuvarna.bg.orderservice.productCustomization.module.ProductCustomization;
+import sit.tuvarna.bg.orderservice.promoCodes.service.PromoCodeService;
 import sit.tuvarna.bg.orderservice.web.dto.onlineOrders.*;
 import sit.tuvarna.bg.orderservice.web.dto.orderRequest.*;
 import sit.tuvarna.bg.orderservice.web.dto.salesAndAnalytics.RevenuePoint;
@@ -35,15 +37,17 @@ public class OnlineOrderService {
     private final AuthService authService;
     private final ProductService productService;
     private final IngredientService ingredientService;
+    private final PromoCodeService promoCodeService;
 
 
 
     @Autowired
-    public OnlineOrderService(OnlineOrderRepository onlineOrderRepository, AuthService authService, ProductService productService, IngredientService ingredientService) {
+    public OnlineOrderService(OnlineOrderRepository onlineOrderRepository, AuthService authService, ProductService productService, IngredientService ingredientService, PromoCodeService promoCodeService) {
         this.onlineOrderRepository = onlineOrderRepository;
         this.authService = authService;
         this.productService = productService;
         this.ingredientService = ingredientService;
+        this.promoCodeService = promoCodeService;
     }
 
     @Async
@@ -224,13 +228,12 @@ public class OnlineOrderService {
                 }
             }
 
-            // 5. (Promo code logic would go here in the future)
-            // Example:
-            // if (dto.getPromoCode() != null && !dto.getPromoCode().isBlank()) {
-            //     BigDecimal discount = promoCodeService.calculateDiscount(dto.getPromoCode(), backendTotal);
-            //     backendTotal = backendTotal.subtract(discount);
-            //     order.setDiscount(discount);
-            // }
+//             5. Promo code logic
+             BigDecimal discount = BigDecimal.ZERO;
+             if (dto.getPromoCode() != null && !dto.getPromoCode().isBlank()) {
+                 discount = promoCodeService.calculateDiscount(dto.getPromoCode(), backendTotal,userId);
+                 backendTotal = backendTotal.subtract(discount);
+             }
 
             // 6. Compare backend total with frontend total
             BigDecimal frontendTotal = BigDecimal.valueOf(dto.getTotal());
@@ -240,16 +243,61 @@ public class OnlineOrderService {
 
             // 7. Set totals in order
             order.setTotal(subtotal);
-            order.setDiscount(BigDecimal.ZERO);
+            order.setDiscount(discount);
             order.setTax(BigDecimal.ZERO);
             order.setFinalTotal(backendTotal);
 
             // 8. Save order
             OnlineOrder saved = onlineOrderRepository.save(order);
 
+            checkForPromoCode(userId);
             // 9. Return response
             return new OrderResponseDTO(saved.getId(), saved.getOnlineOrderStatus(), saved.getFinalTotal());
 
+    }
+
+    public List<OnlineOrdersResponseForUser> getAllOrdersForUser(String authHeader) {
+        UUID userId = authService.extractUserId(authHeader);
+        List<OnlineOrder> allByUserIdOrderByCreatedAtDesc = onlineOrderRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        List<OnlineOrdersResponseForUser> response = new ArrayList<>();
+        for (OnlineOrder order : allByUserIdOrderByCreatedAtDesc) {
+            OnlineOrdersResponseForUser build = OnlineOrdersResponseForUser.builder()
+                    .orderId(order.getId())
+                    .createdAt(order.getCreatedAt())
+                    .itemsCount(order.getItems().size())
+                    .status(order.getOnlineOrderStatus().name())
+                    .total(order.getFinalTotal())
+                    .build();
+            response.add(build);
+        }
+        return response;
+
+    }
+
+    public List<OrderItemResponse> getOrderItemsForUser(UUID orderId, String authHeader) {
+        OnlineOrder onlineOrder = onlineOrderRepository.findById(orderId).orElseThrow(() ->new EntityNotFoundException("Order not found"));
+        UUID userId = authService.extractUserId(authHeader);
+        if (!onlineOrder.getUserId().equals(userId)) {
+            throw new RuntimeException("You are not allowed to view this order");
+        }
+        List<OnlineOrderItem> items = onlineOrder.getItems();
+        List<OrderItemResponse> result = new ArrayList<>();
+        for (OnlineOrderItem item : items) {
+            OrderItemResponse build = OrderItemResponse.builder()
+                    .name(item.getProduct().getName())
+                    .quantity(item.getQuantity())
+                    .build();
+            result.add(build);
+        }
+
+        return result;
+    }
+
+    private void checkForPromoCode(UUID userId) {
+        long orderCount = onlineOrderRepository.countByUserId(userId);
+        if (orderCount % 5 == 0 && orderCount > 0) {
+            promoCodeService.initPromoCodeForUser(userId);
+        }
     }
 
     private BigDecimal findExtraCostForIngredient(Ingredient ingredient, List<ProductCustomization> customizations) {
@@ -261,4 +309,6 @@ public class OnlineOrderService {
         }
         return BigDecimal.ZERO;
     }
+
+
 }

@@ -1,8 +1,10 @@
 package sit.tuvarna.bg.orderservice.product.service;
 
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import sit.tuvarna.bg.orderservice.ingriedient.model.Ingredient;
 import sit.tuvarna.bg.orderservice.ingriedient.service.IngredientService;
 import sit.tuvarna.bg.orderservice.product.module.Category;
@@ -160,6 +162,7 @@ public class ProductService {
         dto.setImage(product.getImageURL());
         dto.setDescription(product.getDescription());
         dto.setCategory(product.getCategory().name());
+        dto.setRecipe(product.getRecipe());
         dto.setCustomizations(product.getCustomizations().stream().map(c -> {
             CustomizationDto cdto = new CustomizationDto();
             cdto.setId(c.getId());
@@ -189,4 +192,70 @@ public class ProductService {
         return productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
     }
 
+    public void deleteProduct(UUID id) {
+        productRepository.deleteById(id);
+    }
+
+    @Transactional
+    public void updateProduct(UUID id, ProductDto dto) {
+        Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
+        product.setName(dto.getName());
+        product.setDescription(dto.getDescription());
+        product.setPrice(BigDecimal.valueOf(dto.getPrice()));
+        product.setGrams(dto.getGrams());
+        product.setSeasonal(dto.isSeasonal());
+        product.setCategory(Category.valueOf(dto.getCategory())); // must match enum
+        product.setRecipe(dto.getRecipe());
+        product.setImageURL(dto.getImage());
+
+        Set<Ingredient> ingredients = ingredientService.findAllById(
+                dto.getIngredients().stream().map(IngredientDto::getId).toList()
+        ).stream().collect(Collectors.toSet());
+        product.getIngredients().clear();
+        product.getIngredients().addAll(ingredients);
+
+        product.getCustomizations().clear();
+
+        Map<Boolean, List<IngredientDto>> partitionedIngredients =
+                dto.getIngredients().stream()
+                        .collect(Collectors.partitioningBy(IngredientDto::isPermanent));
+
+        List<IngredientDto> nonPermanentIngredients = partitionedIngredients.get(false);
+        Map<UUID, Ingredient> ingredientMap = ingredients.stream()
+                .collect(Collectors.toMap(Ingredient::getId, i -> i));
+
+        for (IngredientDto nonPermanentIngredient : nonPermanentIngredients) {
+            ProductCustomization productCustomization = new ProductCustomization();
+            productCustomization.setProduct(product);
+            productCustomization.setIngredient(ingredientMap.get(nonPermanentIngredient.getId()));
+            productCustomization.setAddable(nonPermanentIngredient.isCanBeAdded());
+            productCustomization.setRemovable(nonPermanentIngredient.isCanBeRemoved());
+            productCustomization.setExtraCost(nonPermanentIngredient.getExtraCost());
+            productCustomization.setMaxQuantity(nonPermanentIngredient.getMaxQty());
+            product.getCustomizations().add(productCustomization);
+        }
+
+        // 5. Update combinations
+        Set<Product> combinations = productRepository.findAllById(dto.getCombinableProducts())
+                .stream().collect(Collectors.toSet());
+        product.getCombinations().clear();
+        product.getCombinations().addAll(combinations);
+
+        // 6. Save updated product
+        Product saved = productRepository.save(product);
+
+        // 7. Handle image upload asynchronously
+        if (dto.getImage() != null && !dto.getImage().isBlank()) {
+            uploadBase64ImageAsync(dto.getImage())
+                    .thenAccept(imageUrl -> {
+                        product.setImageURL(imageUrl);
+                        productRepository.save(product);
+                    })
+                    .exceptionally(ex -> {
+                        System.err.println("Image upload failed: " + ex.getMessage());
+                        return null;
+                    });
+        }
+
+    }
 }

@@ -64,10 +64,26 @@ public class OnlineOrderController {
         List<Long> ordersPerDay = onlineOrderService.getOrdersPerDay();
         return ResponseEntity.ok(ordersPerDay);
     }
+
     @PostMapping("/place")
     public ResponseEntity<OrderResponseDTO> postOrder(@RequestBody OrderRequestDTO orderRequest,
-                                                      @RequestHeader("Authorization") String authHeader){
-        OrderResponseDTO orderResponseDTO = onlineOrderService.processOrder(orderRequest,authHeader);
+                                                      @RequestHeader("Authorization") String authHeader) {
+        OrderResponseDTO orderResponseDTO = onlineOrderService.processOrder(orderRequest, authHeader);
         return ResponseEntity.ok(orderResponseDTO);
+    }
+
+    @GetMapping("/my")
+    public ResponseEntity<List<OnlineOrdersResponseForUser>> getAllOrdersForUser(@RequestHeader("Authorization") String authHeader) {
+        List<OnlineOrdersResponseForUser> allOrdersForUser = onlineOrderService.getAllOrdersForUser(authHeader);
+        return ResponseEntity.ok(allOrdersForUser);
+    }
+
+
+    @GetMapping("/{orderId}/items")
+    public ResponseEntity<List<OrderItemResponse>> getOrderItems(@PathVariable UUID orderId,
+                                                                 @RequestHeader("Authorization") String authHeader) {
+        List<OrderItemResponse> items = onlineOrderService.getOrderItemsForUser(orderId,authHeader);
+        return ResponseEntity.ok(items);
+
     }
 }

@@ -111,4 +111,7 @@ public interface OnlineOrderRepository extends JpaRepository<OnlineOrder, UUID> 
 
 
 
+    long countByUserId(UUID id);
+
+    List<OnlineOrder> findAllByUserIdOrderByCreatedAtDesc(UUID id);
 }

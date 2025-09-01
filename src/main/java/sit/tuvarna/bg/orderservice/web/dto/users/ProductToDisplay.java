@@ -16,6 +16,7 @@ public class ProductToDisplay {
     private String image;
     private String description;
     private String category;
+    private String recipe;
     private List<CustomizationDto> customizations;
     private List<RecommendedProductDto> recommended;
 }
