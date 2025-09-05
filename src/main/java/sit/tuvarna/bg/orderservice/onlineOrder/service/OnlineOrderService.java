@@ -6,6 +6,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import sit.tuvarna.bg.orderservice.auth.service.AuthService;
+import sit.tuvarna.bg.orderservice.exceptions.MissingOrderException;
+import sit.tuvarna.bg.orderservice.exceptions.OwnerOrderException;
 import sit.tuvarna.bg.orderservice.ingriedient.model.Ingredient;
 import sit.tuvarna.bg.orderservice.ingriedient.service.IngredientService;
 import sit.tuvarna.bg.orderservice.onlineOrder.model.DeliveryMethod;
@@ -20,9 +22,12 @@ import sit.tuvarna.bg.orderservice.product.module.Product;
 import sit.tuvarna.bg.orderservice.product.service.ProductService;
 import sit.tuvarna.bg.orderservice.productCustomization.module.ProductCustomization;
 import sit.tuvarna.bg.orderservice.promoCodes.service.PromoCodeService;
+import sit.tuvarna.bg.orderservice.web.dto.analytics.OrdersPerDay;
 import sit.tuvarna.bg.orderservice.web.dto.onlineOrders.*;
 import sit.tuvarna.bg.orderservice.web.dto.orderRequest.*;
 import sit.tuvarna.bg.orderservice.web.dto.salesAndAnalytics.RevenuePoint;
+import sit.tuvarna.bg.orderservice.web.dto.salesAndAnalytics.SumCount;
+import sit.tuvarna.bg.orderservice.web.dto.salesChart.HourlyCountDto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -100,7 +105,7 @@ public class OnlineOrderService {
     public OngoingOrderDetails getOngoingOrderDetails(UUID orderId, UUID userId) {
         //we need to return:
         //items in the order in the following way
-        OnlineOrder onlineOrder = onlineOrderRepository.findById(orderId).orElseThrow(() -> new RuntimeException("Cant find order!"));
+        OnlineOrder onlineOrder = onlineOrderRepository.findById(orderId).orElseThrow(() -> new MissingOrderException("Cant find order!"));
         List<OnlineOrderItem> items = onlineOrder.getItems();
         Map<String, Integer> map = new HashMap<>();
         //burger 2
@@ -278,7 +283,7 @@ public class OnlineOrderService {
         OnlineOrder onlineOrder = onlineOrderRepository.findById(orderId).orElseThrow(() ->new EntityNotFoundException("Order not found"));
         UUID userId = authService.extractUserId(authHeader);
         if (!onlineOrder.getUserId().equals(userId)) {
-            throw new RuntimeException("You are not allowed to view this order");
+            throw new OwnerOrderException("You are not allowed to view this order");
         }
         List<OnlineOrderItem> items = onlineOrder.getItems();
         List<OrderItemResponse> result = new ArrayList<>();
@@ -292,7 +297,18 @@ public class OnlineOrderService {
 
         return result;
     }
-
+    public BigDecimal sumFromTotal(LocalDateTime start, LocalDateTime end){
+        return onlineOrderRepository.sumFromTotal(start, end);
+    }
+    public List<HourlyCountDto> countByHour( LocalDate period){
+        return onlineOrderRepository.countByHour(period);
+    }
+    public SumCount sumAndCountOnlineOrders(LocalDateTime start, LocalDateTime end){
+        return onlineOrderRepository.sumAndCountOnlineOrders(start, end);
+    }
+    public List<OrdersPerDay> findOnlineOrdersPerDay(LocalDateTime period){
+        return onlineOrderRepository.findOnlineOrdersPerDay(period);
+    }
     private void checkForPromoCode(UUID userId) {
         long orderCount = onlineOrderRepository.countByUserId(userId);
         if (orderCount % 5 == 0 && orderCount > 0) {

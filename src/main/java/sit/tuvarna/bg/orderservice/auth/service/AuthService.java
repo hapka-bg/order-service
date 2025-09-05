@@ -2,12 +2,11 @@ package sit.tuvarna.bg.orderservice.auth.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 import sit.tuvarna.bg.orderservice.auth.client.AuthClient;
 import sit.tuvarna.bg.orderservice.auth.client.StaffClient;
+import sit.tuvarna.bg.orderservice.exceptions.AuthFeignServiceNotWorkingException;
 import sit.tuvarna.bg.orderservice.web.dto.onlineOrders.UserDetailsForOnlineOrders;
 
 import java.util.List;
@@ -35,8 +34,7 @@ public class AuthService {
             return allStaffNames.getBody();
         }
         catch (Exception e) {
-            log.error(e.getMessage());
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+            throw new AuthFeignServiceNotWorkingException("Error getting names from feign client");
         }
     }
 
@@ -49,8 +47,7 @@ public class AuthService {
             return phoneNumberAndAddress.getBody();
         }
         catch (Exception e) {
-            log.error(e.getMessage());
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+            throw new AuthFeignServiceNotWorkingException( e.getMessage());
         }
     }
     public UUID extractUserId(String authHeader) {
@@ -58,12 +55,11 @@ public class AuthService {
             ResponseEntity<UUID> response = authClient.extractUserId(authHeader);
             if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
                 log.error("[Feign call to auth-svc failed] Couldn't extract userId from JWT");
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+
             }
             return response.getBody();
         } catch (Exception e) {
-            log.error("[Feign call to auth-svc failed] {}", e.getMessage());
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage());
+            throw new AuthFeignServiceNotWorkingException("Feign call to auth-svc failed. Couldn't extract user id from auth header: "+authHeader);
         }
     }
 

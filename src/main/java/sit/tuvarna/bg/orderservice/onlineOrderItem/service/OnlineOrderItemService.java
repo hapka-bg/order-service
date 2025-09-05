@@ -6,14 +6,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import sit.tuvarna.bg.orderservice.onlineOrderItem.repository.OnlineOrderItemRepository;
 import sit.tuvarna.bg.orderservice.product.module.Product;
-import sit.tuvarna.bg.orderservice.product.repository.ProductRepository;
-import sit.tuvarna.bg.orderservice.web.dto.top5.ProductSparkDto;
-import sit.tuvarna.bg.orderservice.web.dto.top5.ProductSparkProjection;
+import sit.tuvarna.bg.orderservice.product.service.ProductService;
 import sit.tuvarna.bg.orderservice.web.dto.top5.Top5ProductsFinalDto;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,40 +20,31 @@ public class OnlineOrderItemService {
 
     private final OnlineOrderItemRepository onlineOrderItemRepository;
     private final ObjectMapper objectMapper;
-    private final ProductRepository  productRepository;
+    private final ProductService productService;
 
     @Autowired
-    public OnlineOrderItemService(OnlineOrderItemRepository repository, ProductRepository productRepository) {
+    public OnlineOrderItemService(OnlineOrderItemRepository repository, ProductService productService) {
         this.onlineOrderItemRepository = repository;
-        this.productRepository = productRepository;
+        this.productService = productService;
         this.objectMapper = new ObjectMapper();
     }
 
 
     public List<Top5ProductsFinalDto> getTop5Products() {
-        List<ProductSparkProjection> productSparkProjections = onlineOrderItemRepository.fetchProductSparks();
-        List<ProductSparkDto> list = productSparkProjections.stream()
-                .map(p -> new ProductSparkDto(
-                        UUID.fromString(p.getProductId()),
-                        parseJsonArray(p.getUnitsArray())
-                )).toList();
-        //fetch data for each product and sum the spark to return it a new dto
-        //for each product fetch the name and the image url
-        List<Top5ProductsFinalDto> result = new ArrayList<>();
-        for (ProductSparkDto productSparkDto : list) {
-            UUID productId = productSparkDto.product_id();
-            List<Integer> spark = productSparkDto.spark();
-            Product product = productRepository.findById(productId).orElseThrow(() -> new RuntimeException("Product not found: " + productId));
-            Integer sum = spark.stream().mapToInt(i -> i).sum();
-            Top5ProductsFinalDto build = Top5ProductsFinalDto.builder()
-                    .name(product.getName())
-                    .units(sum)
-                    .imageURL(product.getImageURL())
-                    .spark(spark.toArray(new Integer[0]))
-                    .build();
-            result.add(build);
-        }
-        return result;
+        return onlineOrderItemRepository.fetchProductSparks().stream()
+                .map(p->{
+                    UUID productId = UUID.fromString(p.getProductId());
+                    List<Integer> spark = parseJsonArray(p.getUnitsArray());
+                    Product product = productService.getById(productId);
+                    int totalUnits = spark.stream().mapToInt(Integer::intValue).sum();
+
+                    return Top5ProductsFinalDto.builder()
+                            .name(product.getName())
+                            .units(totalUnits)
+                            .imageURL(product.getImageURL())
+                            .spark(spark.toArray(new Integer[0]))
+                            .build();
+                }).toList();
     }
 
     private List<Integer> parseJsonArray(String json) {

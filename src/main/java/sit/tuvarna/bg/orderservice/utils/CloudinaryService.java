@@ -3,6 +3,7 @@ package sit.tuvarna.bg.orderservice.utils;
 import com.cloudinary.Cloudinary;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import sit.tuvarna.bg.orderservice.exceptions.CloudServiceException;
 
 import java.io.IOException;
 import java.util.Base64;
@@ -35,7 +36,7 @@ public class CloudinaryService {
             return uploadResult.get("secure_url").toString();
 
         } catch (IOException e) {
-            throw new RuntimeException("Image upload failed", e);
+            throw new CloudServiceException("Image upload failed");
         }
     }
 }

@@ -2,6 +2,7 @@ package sit.tuvarna.bg.orderservice.ingriedient.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import sit.tuvarna.bg.orderservice.exceptions.IngredientNotFoundException;
 import sit.tuvarna.bg.orderservice.ingriedient.model.Ingredient;
 import sit.tuvarna.bg.orderservice.ingriedient.repository.IngredientRepository;
 import sit.tuvarna.bg.orderservice.web.dto.addProduct.IngredientsData;
@@ -44,6 +45,6 @@ public class IngredientService {
     }
 
     public Ingredient getById(UUID id) {
-        return inventoryRepository.findById(id).orElseThrow(() -> new RuntimeException("Ingredient not found"));
+        return inventoryRepository.findById(id).orElseThrow(() -> new IngredientNotFoundException("Ingredient not found"));
     }
 }

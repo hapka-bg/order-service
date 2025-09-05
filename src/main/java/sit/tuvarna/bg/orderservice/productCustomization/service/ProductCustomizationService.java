@@ -15,7 +15,7 @@ public class ProductCustomizationService {
         this.productCustomizationRepository = productCustomizationRepository;
     }
 
-    public List<ProductCustomization> saveAllProductCustomization(List<ProductCustomization> productCustomization) {
-        return productCustomizationRepository.saveAll(productCustomization);
+    public void saveAllProductCustomization(List<ProductCustomization> productCustomization) {
+        productCustomizationRepository.saveAll(productCustomization);
     }
 }

@@ -5,7 +5,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import sit.tuvarna.bg.orderservice.auth.service.AuthService;
 import sit.tuvarna.bg.orderservice.bill.repository.BillRepository;
-import sit.tuvarna.bg.orderservice.onlineOrder.repository.OnlineOrderRepository;
+import sit.tuvarna.bg.orderservice.onlineOrder.service.OnlineOrderService;
 import sit.tuvarna.bg.orderservice.web.dto.analytics.OrdersPerDay;
 import sit.tuvarna.bg.orderservice.web.dto.analytics.WaiterOrders;
 import sit.tuvarna.bg.orderservice.web.dto.salesAndAnalytics.SumCount;
@@ -25,14 +25,14 @@ import java.util.stream.Stream;
 public class BillService {
 
     private final BillRepository billRepository;
-    private final OnlineOrderRepository onlineOrderRepository;
     private final AuthService authService;
+    private final OnlineOrderService onlineOrderService;
 
     @Autowired
-    public BillService(BillRepository billRepository, OnlineOrderRepository onlineOrderRepository, AuthService authService) {
+    public BillService(BillRepository billRepository, AuthService authService, OnlineOrderService onlineOrderService) {
         this.billRepository = billRepository;
-        this.onlineOrderRepository = onlineOrderRepository;
         this.authService = authService;
+        this.onlineOrderService = onlineOrderService;
     }
 
     @Async
@@ -40,12 +40,12 @@ public class BillService {
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
-        return CompletableFuture.completedFuture(billRepository.sumFromTotal(startOfDay, endOfDay));
+        return CompletableFuture.supplyAsync(()->billRepository.sumFromTotal(startOfDay, endOfDay));
     }
 
     public BigDecimal getWeeklyRevenue(LocalDateTime start, LocalDateTime end) {
         BigDecimal billsRevenue = billRepository.sumFromTotal(start, end);
-        BigDecimal ordersRevenue = onlineOrderRepository.sumFromTotal(start, end);
+        BigDecimal ordersRevenue = onlineOrderService.sumFromTotal(start, end);
         return billsRevenue.add(ordersRevenue);
     }
 
@@ -61,8 +61,8 @@ public class BillService {
         LocalDate yesterday = today.minusDays(1);
         List<HourlyCountDto> billsToday = billRepository.countByHour(today);
         List<HourlyCountDto> billsYesterday = billRepository.countByHour(yesterday);
-        List<HourlyCountDto> ordersToday = onlineOrderRepository.countByHour(today);
-        List<HourlyCountDto> ordersYesterday = onlineOrderRepository.countByHour(yesterday);
+        List<HourlyCountDto> ordersToday = onlineOrderService.countByHour(today);
+        List<HourlyCountDto> ordersYesterday = onlineOrderService.countByHour(yesterday);
         List<Integer> hours = IntStream.rangeClosed(8, 19).boxed().toList();
         Map<Integer, Long> todayMap = mergeCounts(billsToday, ordersToday);
         Map<Integer, Long> yesterdayMap = mergeCounts(billsYesterday, ordersYesterday);
@@ -82,7 +82,7 @@ public class BillService {
             return BigDecimal.ZERO;
         }
 
-        SumCount online = onlineOrderRepository.sumAndCountOnlineOrders(start, end);
+        SumCount online = onlineOrderService.sumAndCountOnlineOrders(start, end);
         SumCount dineIn = billRepository.sumAndCountBills(start, end);
 
         BigDecimal totalSum = online.getSum().add(dineIn.getSum());
@@ -95,7 +95,7 @@ public class BillService {
 
     public List<OrdersPerDay> getAllOrdersPerDay() {
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
-        List<OrdersPerDay> online = onlineOrderRepository.findOnlineOrdersPerDay(sevenDaysAgo);
+        List<OrdersPerDay> online = onlineOrderService.findOnlineOrdersPerDay(sevenDaysAgo);
 
         LocalDateTime fromDate = LocalDateTime.now().minusDays(7);
         List<OrdersPerDay> bills = billRepository.findBillsPerDay(fromDate);
